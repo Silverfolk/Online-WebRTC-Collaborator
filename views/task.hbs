@@ -1,0 +1,206 @@
+<div style="padding:3rem 0rem ;">
+    <div class="row" style="margin-left:-3rem; ;">
+     <div class="col-md-8">
+<textarea id="code-screen">{{content}}</textarea>{{!-- content will be coming from the backend  --}}
+     </div>
+     <div class="col-md-4" id="chatbox" >
+     {{!-- chat box is here--}}
+     <div class="panel panel-primary">
+        <!-- VIDEO CALL -->
+        <div id="video-container">
+          <video autoplay id="second-video"></video>
+          <video autoplay id="my-video" muted="true"></video>
+          <div id="step2">
+            <p>Your ID: <span id="my-id">...</span></p>
+            <div class="form-inline">
+              <input type="text" class="form-control" placeholder="Call User ID..." id="callto-id">
+              <a href="#" class="btn btn-sm btn-success" id="make-call">Call</a>
+            </div>
+          </div>
+          <div id="step3">
+            <p>Talk to <span id="second-id">...</span>
+              <a href="#" class="btn btn-sm btn-danger" id="end-call">End call</a>
+            </p>
+          </div>
+        </div>
+
+        <!-- CHAT ROOM -->
+        <div class="panel-heading">
+          CHAT ROOM
+          <span class="pull-right" id="chatbox-username">
+            {{#if user}}
+              {{user.name}}
+            {{/if}}
+          </span>
+        </div>
+        <div class="panel-body">
+          <ul class="media-list" style="heigh: 300px; overflow-y: scroll" id="chatbox-listMessages">
+
+          </ul>
+        </div>
+        <div class="panel-footer">
+          <div class="input-group">
+            <input type="text" class="form-control" placeholder="Enter message" id="userMessage"/>
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-primary" onclick="sendMessage()">SEND</button>
+            </span>
+          </div>
+        </div>
+      </div>
+
+     </div>
+    </div>
+</div>
+<input type="hidden" value="{{roomId}}" id="roomId">
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.4/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.4/mode/javascript/javascript.min.js"></script>
+
+<script src="/plugin/ot.js"></script>
+<script src="/socket.io/socket.io.js">
+//here src="/socket.io/socket.io.js we are importing socket.io in our hbs file 
+</script>
+<script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+{{!-- <script src="https://rocky-depths-74216.herokuapp.com/peer/peer.jsscript"></script> --}}
+{{!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.3.1/peerjs.min.js "></script> --}}
+
+<script>
+  
+    var EditorClient = window.ot.EditorClient;
+  var SocketIOAdapter = window.ot.SocketIOAdapter;
+  var CodeMirrorAdapter =window. ot.CodeMirrorAdapter;
+ 
+    var socket=io.connect('http://localhost:3000');
+
+    var editor = CodeMirror.fromTextArea(document.getElementById("code-screen"), {
+    lineNumbers: true,
+    theme: "midnight"
+  }); 
+
+ var code = $('#code-screen').val();
+   var cmClient;
+  function init(str, revision, clients, serverAdapter) {
+    if (!code) {
+      editor.setValue(str);//if code is empty then it will put str value other it will the editor along with code jo database mai pehle se save hai 
+    }
+    cmClient = window.cmClient = new EditorClient(
+      revision, clients, serverAdapter, new CodeMirrorAdapter(editor)
+    );
+  };
+
+  socket.on('doc', function(obj) {
+    init(obj.str, obj.revision, obj.clients, new SocketIOAdapter(socket));
+  });
+  
+  var username = $("#chatbox-username").val();
+  console.log(username);
+  if(username === "") {
+    var userId = Math.floor(Math.random() * 9999).toString();
+    username = "User" + userId;
+    $("#chatbox-username").text(username);
+  }
+
+  var roomId=$('#roomId').val()//we also take value by getelementbyid 
+  socket.emit('Joining',{room:roomId});//data.room mai roomId ki value gyi hai aur data Joining socket (socket-server) mai hai 
+ 
+    var userMessage = function(name, text) {
+    return ('<li class="media"> <div class="media-body"> <div class="media">' +
+      '<div class="media-body"' +
+      '<b>' + name + '</b> : ' + text +
+      '<hr/> </div></div></div></li>'
+    );
+  };
+
+     var sendMessage = function() {
+    var userMessage = $('#userMessage').val();
+    socket.emit('chatMessage', {message: userMessage, username: username});
+    $('#userMessage').val("");
+  };
+
+    socket.on('chatMessage', function(data) {
+    $('#chatbox-listMessages').append(userMessage(data.username, data.message));
+  });
+
+
+  // PeerJS
+  // Compatibility shim
+    // PeerJS object
+    
+  const peer = new Peer(undefined, {
+  host: location.hostname,
+  secure: true,
+  port: location.port,
+  path: "peerjs"
+});
+    let IntId=document.querySelector('#callto-id').value;
+   // var conn = peer.connect(IntId);
+    
+   
+    var getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+    let localStream;
+
+   
+   navigator.mediaDevices.getUserMedia({audio: true,video:true})
+   .then(stream =>{
+    localStream=stream;
+    var myvideo=document.querySelector('#my-video');
+    myvideo.srcObject=localStream;
+    myvideo.onloadedmetadata = () =>myvideo.play();
+   });
+
+  //For Getting PeerId 
+    peer.on('open', function(id){
+      $('#my-id').text(id);//peer.id ki jagah id only
+      console.log(id);
+    });
+  
+
+   
+ 
+ //Recieve Connection 
+ peer.on('connection', function(conn) {
+  conn.on('data', function(data){
+    // Will print 'hi!'
+    console.log(data);
+  });
+});
+
+
+//Media Calls 
+// Click handlers setup
+ $(function(){
+      $('#make-call').click(function(){
+        var conn = peer.connect($('#callto-id').val());
+        //  peer.on('connection', function(conn) { 
+            $('#step1, #step3').hide();
+            $('#step2').show();
+          // });
+        // Initiate a call!
+     var  call = peer.call($('#callto-id').val(),localStream);
+         call.on("stream",stream =>{
+          var secondvid=document.querySelector('#second-video');
+          secondvid.srcObject=stream;
+          secondvid.onloadedmetadata = () => secondvid.play();
+         });
+        
+      });
+     // $('#end-call').click(function(){
+     //   window.existingCall.close();
+      //  step2();
+     // });
+      //step1();
+    });
+
+    peer.on("call",call=>{
+      call.answer(localStream);
+      call.on("stream" ,stream =>{
+        const secondvid=document.querySelector('#second-video');
+        secondvid.srcObject=stream;
+        secondvid.onloadedmetadata = () => secondvid.play();
+
+        $('#step1, #step2').hide();
+        $('#step3').show();
+      });
+    });
+    
+</script>
