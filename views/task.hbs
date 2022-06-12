@@ -126,12 +126,7 @@
   // Compatibility shim
     // PeerJS object
     
-  const peer = new Peer(undefined, {
-  host: location.hostname,
-  secure: true,
-  port: location.port,
-  path: "peerjs"
-});
+  const peer = new Peer();
     let IntId=document.querySelector('#callto-id').value;
    // var conn = peer.connect(IntId);
     
